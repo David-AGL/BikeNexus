@@ -1,0 +1,18 @@
+# Ejemplo de configuración. Copia este archivo a "terraform.tfvars" y ajusta los valores.
+#   cp terraform.tfvars.example terraform.tfvars
+
+aws_region = "us-east-1"
+proyecto   = "bikenexus"
+
+# Kinesis
+stream_shards          = 2
+stream_retencion_horas = 24
+
+# EventBridge: cada 60 segundos (RF-01)
+frecuencia_ingesta = "rate(1 minute)"
+
+# IMPORTANTE (AWS Academy):
+# Pega aquí el ARN del LabRole de tu cuenta de AWS Academy. Lo encuentras en:
+#   IAM -> Roles -> LabRole -> copiar ARN
+# Se ve así:  arn:aws:iam::123456789012:role/LabRole
+lambda_role_arn = "arn:aws:iam::XXXXXXXXXXXX:role/LabRole"
