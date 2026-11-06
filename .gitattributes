@@ -1,0 +1,6 @@
+# Los scripts .sh SIEMPRE deben usar finales de línea Unix (LF), aunque se
+# clonen en Windows. Esto evita el error "$'\r': command not found" en bash.
+*.sh text eol=lf
+
+# Los scripts de PowerShell usan finales de Windows (CRLF).
+*.ps1 text eol=crlf
