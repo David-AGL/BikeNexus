@@ -1,0 +1,25 @@
+# Configuración de la infraestructura. Copia a "terraform.tfvars" y ajusta:
+#   cp terraform.tfvars.example terraform.tfvars
+
+aws_region = "us-east-1"
+proyecto   = "bikenexus"
+
+# Los nombres de bucket deben ser UNICOS en todo AWS. Cambia el sufijo si da error.
+data_bucket = "bikenexus-datalake-eafit"
+code_bucket = "bikenexus-codigo-eafit"
+
+# Kinesis
+stream_shards          = 2
+stream_retencion_horas = 24
+
+# EMR
+emr_release       = "emr-7.1.0"
+emr_instance_type = "m5.xlarge"
+
+# === AWS ACADEMY (IMPORTANTE) ===
+# Pega el ARN del LabRole: IAM -> Roles -> LabRole -> copiar ARN
+lab_role_arn = "arn:aws:iam::XXXXXXXXXXXX:role/LabRole"
+
+# Instance profile para EMR. En Academy suele ser "LabInstanceProfile".
+# Si da error, prueba con "EMR_EC2_DefaultRole".
+lab_instance_profile = "LabInstanceProfile"
