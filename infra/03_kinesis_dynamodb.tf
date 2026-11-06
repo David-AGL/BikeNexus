@@ -4,18 +4,16 @@
 
 # -----------------------------------------------------------------------------
 # KINESIS: recibe los reportes de estado de estaciones (RF-01).
-#   2 shards cubren el pico de ~330 ev/s (RNF-01); retencion 24h (RNF-05).
+#   2 shards cubren el pico de ~330 ev/s (RNF-01).
+#
+# NOTA (AWS Academy): no se define 'retention_period' ni 'shard_level_metrics'
+# porque la cuenta de laboratorio bloquea (SCP) las operaciones
+# IncreaseStreamRetentionPeriod y EnableEnhancedMonitoring. La retencion queda
+# en el valor por defecto de Kinesis, que ya es 24h (lo que pide RNF-05).
 # -----------------------------------------------------------------------------
 resource "aws_kinesis_stream" "estaciones" {
-  name             = "${var.proyecto}-estaciones"
-  shard_count      = var.stream_shards
-  retention_period = var.stream_retencion_horas
-
-  shard_level_metrics = [
-    "IncomingRecords",
-    "OutgoingRecords",
-    "WriteProvisionedThroughputExceeded",
-  ]
+  name        = "${var.proyecto}-estaciones"
+  shard_count = var.stream_shards
 
   stream_mode_details {
     stream_mode = "PROVISIONED"
