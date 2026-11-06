@@ -112,7 +112,9 @@ def inyectar_css():
     st.markdown(
         """
         <style>
-          .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+          /* Más aire arriba para que el título no quede recortado por el header */
+          .block-container { padding-top: 3rem; padding-bottom: 1rem; }
+          header[data-testid="stHeader"] { height: 0; }
           /* Tarjetas KPI */
           .kpi {
             background: linear-gradient(145deg, #1e293b, #0f172a);
@@ -164,49 +166,62 @@ def grafico_dona(df):
     return fig
 
 
+def _color_urgencia(min_rest, estado):
+    """Color según cuán urgente: rojo = muy urgente, ámbar = medio, verde = con margen."""
+    if min_rest is None or min_rest <= 2:
+        return "#ef4444"   # rojo: crítico / ya en el límite
+    if min_rest <= 7:
+        return "#f59e0b"   # ámbar: urgente
+    return "#eab308"       # amarillo: en riesgo pero con algo de margen
+
+
 def grafico_top_criticas(alertas):
     """
-    Barras horizontales con las 10 estaciones más urgentes (menor tiempo
-    restante para vaciarse o llenarse). La más crítica queda arriba.
+    Barras horizontales con las 10 estaciones más urgentes por TIEMPO RESTANTE
+    estimado (menor = más urgente). La más crítica queda arriba. El color indica
+    el nivel de urgencia. Solo tiene sentido con estaciones EN_RIESGO (que tienen
+    estimación de minutos); si no hay, se muestra un aviso.
     """
-    # Preferimos las que tienen estimación de tiempo; si no hay, usamos las primeras.
     con_tiempo = alertas.dropna(subset=["min_restantes"])
-    top = con_tiempo.nsmallest(10, "min_restantes") if not con_tiempo.empty else alertas.head(10)
-    top = top.iloc[::-1]  # invertir para que la más urgente quede ARRIBA
+    con_tiempo = con_tiempo[con_tiempo["min_restantes"] < 999999]
 
-    # Etiqueta: nombre si existe, si no el id recortado.
+    if con_tiempo.empty:
+        return None  # el caller mostrará un mensaje explicativo
+
+    top = con_tiempo.nsmallest(10, "min_restantes").iloc[::-1]  # más urgente arriba
+
     def _etq(row):
         nom = (row["nombre"] or "").strip()
-        base = nom if nom else str(row["estacion_id"])
-        return (base[:22] + "…") if len(base) > 23 else base
+        base = nom if nom else f"Estación {row['estacion_id']}"
+        return (base[:24] + "…") if len(base) > 25 else base
 
     etiquetas = top.apply(_etq, axis=1)
-    valores = top["min_restantes"].fillna(0)
-    colores = [COLOR[e] for e in top["estado"]]
-    # Texto sobre cada barra: minutos y estado.
-    texto = [f"{v:.0f} min · {LABEL[e]}" for v, e in zip(valores, top["estado"])]
+    valores = top["min_restantes"].astype(float)
+    colores = [_color_urgencia(v, e) for v, e in zip(valores, top["estado"])]
+    texto = [f"  {v:.0f} min" for v in valores]
 
     fig = go.Figure(go.Bar(
         x=valores,
         y=etiquetas,
         orientation="h",
-        marker=dict(color=colores, line=dict(color="#0f172a", width=1)),
+        marker=dict(color=colores, line=dict(width=0), cornerradius=6),
         text=texto,
         textposition="outside",
-        textfont=dict(color="#e2e8f0", size=12),
-        hovertemplate="<b>%{y}</b><br>%{x:.1f} min restantes<extra></extra>",
+        textfont=dict(color="#f1f5f9", size=13, family="Arial Black"),
+        hovertemplate="<b>%{y}</b><br>Se vacía/llena en ~%{x:.0f} min<extra></extra>",
     ))
     fig.update_layout(
-        height=340, margin=dict(t=10, b=10, l=10, r=40),
-        xaxis=dict(title="Minutos restantes para vaciarse/llenarse",
-                   gridcolor="#1e293b", zeroline=False),
-        yaxis=dict(tickfont=dict(size=12)),
+        height=360, margin=dict(t=10, b=40, l=10, r=50),
+        xaxis=dict(
+            title="⏱️ Minutos restantes para vaciarse / llenarse",
+            gridcolor="rgba(148,163,184,0.15)", zeroline=False,
+            title_font=dict(size=12, color="#94a3b8"),
+        ),
+        yaxis=dict(tickfont=dict(size=13, color="#e2e8f0")),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font_color="#cbd5e1", bargap=0.35,
+        font_color="#cbd5e1", bargap=0.4,
     )
-    # Un poco de aire a la derecha para que el texto no se corte.
-    if len(valores) and valores.max() > 0:
-        fig.update_xaxes(range=[0, valores.max() * 1.25])
+    fig.update_xaxes(range=[0, max(valores.max() * 1.25, 5)])
     return fig
 
 
@@ -292,11 +307,19 @@ def main():
         st.markdown("**Distribución por estado**")
         st.plotly_chart(grafico_dona(df), use_container_width=True, config={"displayModeBar": False})
     with g2:
-        st.markdown("**🏆 Top 10 estaciones más urgentes**")
-        if not alertas.empty:
-            st.plotly_chart(grafico_top_criticas(alertas), use_container_width=True, config={"displayModeBar": False})
+        st.markdown("**🏆 Top 10 estaciones más urgentes** "
+                    "<span style='color:#64748b;font-size:0.8rem'>(por tiempo estimado para fallar)</span>",
+                    unsafe_allow_html=True)
+        fig_top = grafico_top_criticas(alertas) if not alertas.empty else None
+        if fig_top is not None:
+            st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
         else:
-            st.success("✅ Sin estaciones en alerta.")
+            st.info(
+                "ℹ️ Aún no hay estaciones **en riesgo** con predicción de tiempo.\n\n"
+                "La predicción se calcula comparando reportes consecutivos. "
+                "Deja corriendo `run_loop_local.py` unos minutos para que se "
+                "acumule tendencia y aparezcan aquí las estaciones próximas a fallar."
+            )
 
     # --- Mapa ----------------------------------------------------------------
     fig_mapa = mapa_estaciones(df)

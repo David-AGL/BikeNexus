@@ -22,3 +22,4 @@ checkpoints/
 
 # Sistema
 .DS_Store
+.historial_estaciones.json
