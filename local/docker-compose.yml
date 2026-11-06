@@ -1,0 +1,19 @@
+# LocalStack: simula los servicios de AWS en tu máquina (gratis, sin créditos).
+# Levanta Kinesis, S3 y DynamoDB en local, para probar el camino de streaming
+# completo sin tocar AWS real.
+#
+# Uso:  docker compose up -d     (levantar)
+#       docker compose down      (apagar)
+
+services:
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: bikenexus-localstack
+    ports:
+      - "4566:4566" # único endpoint para todos los servicios de AWS
+    environment:
+      - SERVICES=kinesis,s3,dynamodb
+      - DEBUG=0
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "./.localstack-data:/var/lib/localstack"
