@@ -164,48 +164,49 @@ def grafico_dona(df):
     return fig
 
 
-def grafico_gauge(pct_salud):
-    """Medidor tipo velocímetro: % de estaciones sanas (normales)."""
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=pct_salud,
-        number={"suffix": "%", "font": {"size": 34, "color": "#f1f5f9"}},
-        gauge={
-            "axis": {"range": [0, 100], "tickcolor": "#64748b"},
-            "bar": {"color": "#10b981"},
-            "bgcolor": "rgba(0,0,0,0)",
-            "borderwidth": 0,
-            "steps": [
-                {"range": [0, 50], "color": "#7f1d1d"},
-                {"range": [50, 80], "color": "#78350f"},
-                {"range": [80, 100], "color": "#064e3b"},
-            ],
-        },
-    ))
-    fig.update_layout(height=300, margin=dict(t=30, b=10, l=20, r=20),
-                      paper_bgcolor="rgba(0,0,0,0)", font_color="#cbd5e1")
-    return fig
-
-
 def grafico_top_criticas(alertas):
-    """Barras horizontales: las estaciones más urgentes (menor tiempo restante)."""
-    top = alertas.dropna(subset=["min_restantes"]).nsmallest(10, "min_restantes")
-    if top.empty:
-        top = alertas.head(10)
-    etiquetas = top["estacion_id"].astype(str).str.slice(0, 14)
+    """
+    Barras horizontales con las 10 estaciones más urgentes (menor tiempo
+    restante para vaciarse o llenarse). La más crítica queda arriba.
+    """
+    # Preferimos las que tienen estimación de tiempo; si no hay, usamos las primeras.
+    con_tiempo = alertas.dropna(subset=["min_restantes"])
+    top = con_tiempo.nsmallest(10, "min_restantes") if not con_tiempo.empty else alertas.head(10)
+    top = top.iloc[::-1]  # invertir para que la más urgente quede ARRIBA
+
+    # Etiqueta: nombre si existe, si no el id recortado.
+    def _etq(row):
+        nom = (row["nombre"] or "").strip()
+        base = nom if nom else str(row["estacion_id"])
+        return (base[:22] + "…") if len(base) > 23 else base
+
+    etiquetas = top.apply(_etq, axis=1)
+    valores = top["min_restantes"].fillna(0)
+    colores = [COLOR[e] for e in top["estado"]]
+    # Texto sobre cada barra: minutos y estado.
+    texto = [f"{v:.0f} min · {LABEL[e]}" for v, e in zip(valores, top["estado"])]
+
     fig = go.Figure(go.Bar(
-        x=top["min_restantes"].fillna(0),
+        x=valores,
         y=etiquetas,
         orientation="h",
-        marker=dict(color=[COLOR[e] for e in top["estado"]]),
-        hovertemplate="%{y}: %{x} min restantes<extra></extra>",
+        marker=dict(color=colores, line=dict(color="#0f172a", width=1)),
+        text=texto,
+        textposition="outside",
+        textfont=dict(color="#e2e8f0", size=12),
+        hovertemplate="<b>%{y}</b><br>%{x:.1f} min restantes<extra></extra>",
     ))
     fig.update_layout(
-        height=320, margin=dict(t=10, b=10, l=10, r=10),
-        xaxis_title="Minutos restantes", yaxis=dict(autorange="reversed"),
+        height=340, margin=dict(t=10, b=10, l=10, r=40),
+        xaxis=dict(title="Minutos restantes para vaciarse/llenarse",
+                   gridcolor="#1e293b", zeroline=False),
+        yaxis=dict(tickfont=dict(size=12)),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font_color="#cbd5e1",
+        font_color="#cbd5e1", bargap=0.35,
     )
+    # Un poco de aire a la derecha para que el texto no se corte.
+    if len(valores) and valores.max() > 0:
+        fig.update_xaxes(range=[0, valores.max() * 1.25])
     return fig
 
 
@@ -268,8 +269,6 @@ def main():
     n_vacias = int((df["estado"] == "VACIA").sum())
     n_llenas = int((df["estado"] == "LLENA").sum())
     n_riesgo = int((df["estado"] == "EN_RIESGO").sum())
-    n_normal = int((df["estado"] == "NORMAL").sum())
-    pct_salud = round(100 * n_normal / total) if total else 0
 
     # --- Fila de KPIs (tarjetas estilizadas) ---------------------------------
     k1, k2, k3, k4, k5 = st.columns(5)
@@ -288,15 +287,12 @@ def main():
     st.write("")
 
     # --- Fila de gráficos ----------------------------------------------------
-    g1, g2, g3 = st.columns([1.1, 1, 1.3])
+    g1, g2 = st.columns([1, 1.6])
     with g1:
         st.markdown("**Distribución por estado**")
         st.plotly_chart(grafico_dona(df), use_container_width=True, config={"displayModeBar": False})
     with g2:
-        st.markdown("**Salud de la red**")
-        st.plotly_chart(grafico_gauge(pct_salud), use_container_width=True, config={"displayModeBar": False})
-    with g3:
-        st.markdown("**Top 10 estaciones más urgentes**")
+        st.markdown("**🏆 Top 10 estaciones más urgentes**")
         if not alertas.empty:
             st.plotly_chart(grafico_top_criticas(alertas), use_container_width=True, config={"displayModeBar": False})
         else:
@@ -316,13 +312,17 @@ def main():
 
     tabla = alertas.copy().sort_values("min_restantes", na_position="last")
     tabla["Estado"] = tabla["estado"].map(LABEL)
+    # Columna "Actualizada": 🟢 verde = dato reciente (<2 min), ⚪ gris = viejo (RNF-02).
+    tabla["Actualizada"] = tabla["desactualizada"].map(
+        lambda d: "⚪ Sin reporte" if d else "🟢 Al día"
+    )
     vista = tabla[[
         "estacion_id", "Estado", "min_restantes", "bikes", "docks",
-        "capacidad", "ocupacion_pct", "desactualizada",
+        "capacidad", "ocupacion_pct", "Actualizada",
     ]].rename(columns={
         "estacion_id": "Estación", "min_restantes": "Min. restantes",
         "bikes": "Bicis", "docks": "Espacios", "capacidad": "Capacidad",
-        "ocupacion_pct": "% Ocupación", "desactualizada": "Desact.",
+        "ocupacion_pct": "% Ocupación",
     })
 
     st.dataframe(
@@ -332,12 +332,14 @@ def main():
                 "% Ocupación", format="%.0f%%", min_value=0, max_value=100),
             "Min. restantes": st.column_config.NumberColumn(
                 "Min. restantes", format="%.1f", help="Minutos estimados para vaciarse/llenarse"),
-            "Desact.": st.column_config.CheckboxColumn(
-                "Desactualizada", help="Sin reporte en >2 min (RNF-02)"),
+            "Actualizada": st.column_config.TextColumn(
+                "Actualizada",
+                help="🟢 Al día = reportó hace menos de 2 min · ⚪ Sin reporte = dato posiblemente viejo (RNF-02)"),
         },
     )
     st.caption(
         f"Mostrando {len(alertas)} estaciones en alerta de {total} totales · "
+        f"🟢 Al día = dato reciente · ⚪ Sin reporte = sin datos hace >{UMBRAL_DESACTUALIZADA_MIN} min (RNF-02) · "
         f"actualizado {datetime.now().strftime('%H:%M:%S')}"
     )
 
