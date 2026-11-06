@@ -64,7 +64,13 @@ variable "lab_role_arn" {
 }
 
 variable "lab_instance_profile" {
-  description = "Nombre del instance profile para EMR en AWS Academy (normalmente 'LabInstanceProfile' o 'EMR_EC2_DefaultRole')"
+  description = "Instance profile para las instancias EC2 de EMR. EMR estandar: 'EMR_EC2_DefaultRole'."
   type        = string
-  default     = "LabInstanceProfile"
+  default     = "EMR_EC2_DefaultRole"
+}
+
+variable "emr_service_role" {
+  description = "Rol de servicio de EMR (necesita permisos EC2). EMR estandar: 'EMR_DefaultRole'."
+  type        = string
+  default     = "EMR_DefaultRole"
 }
