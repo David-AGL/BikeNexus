@@ -10,8 +10,9 @@ resource "aws_emr_cluster" "spark" {
   release_label = var.emr_release
   applications  = ["Spark"]
 
-  # En AWS Academy se usan los roles predefinidos (no se crean roles nuevos).
-  service_role = var.lab_role_arn
+  # EMR necesita un rol de servicio con permisos EC2. El LabRole no los tiene,
+  # asi que usamos el rol de servicio estandar de EMR (configurable por variable).
+  service_role = var.emr_service_role
 
   ec2_attributes {
     instance_profile = var.lab_instance_profile
