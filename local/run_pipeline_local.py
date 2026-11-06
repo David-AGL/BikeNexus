@@ -134,6 +134,12 @@ def escribir_dynamodb(validos: list[dict]):
                 "ultimo_reporte": e.get("timestamp", ahora),
                 "actualizado_en": ahora,
             }
+            # Nombre y coordenadas (para el mapa del dashboard), si vienen.
+            if e.get("nombre"):
+                item["nombre"] = str(e["nombre"])
+            if e.get("lat") is not None and e.get("lon") is not None:
+                item["lat"] = Decimal(str(e["lat"]))
+                item["lon"] = Decimal(str(e["lon"]))
             batch.put_item(Item=item)
     print(f"  DYNAMODB: {len(validos)} estaciones escritas | {n_alerta} en alerta")
 
