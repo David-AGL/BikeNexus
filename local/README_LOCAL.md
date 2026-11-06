@@ -31,10 +31,21 @@ docker ps
 Debes ver el contenedor `bikenexus-localstack`.
 
 ### 3. Crear los recursos (Kinesis, S3, DynamoDB)
+
+**En Windows (PowerShell) — recomendado:**
+```powershell
+.\setup_local.ps1
+```
+Si PowerShell bloquea el script, corre primero:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+**En Linux / Mac / Git Bash:**
 ```bash
 bash setup_local.sh
 ```
-Debe imprimir que creó el stream, el bucket y la tabla.
+
+Debe imprimir que creó el stream, el bucket y la tabla, y al final listar
+`bikenexus-estaciones`. Si NO aparece el stream, revisa la sección de problemas.
 
 ### 4. Publicar datos reales de Citi Bike en Kinesis
 ```bash
@@ -108,3 +119,6 @@ python run_pipeline_local.py              # los procesa
 | El productor dice 0 estaciones | Sin internet, o el feed cambió → revisa conexión |
 | El dashboard sale vacío | ¿Corriste el productor Y el pipeline antes? |
 | `NoCredentialsError` | Faltan los `export AWS_ACCESS_KEY_ID=test ...` |
+| `Stream ... not found` | El stream no se creó. En Windows usa `.\setup_local.ps1` (no `bash setup_local.sh`) |
+| `$'\r': command not found` en bash | El `.sh` quedó con finales de línea de Windows → usa la versión `.ps1` |
+| `aws: cannot execute` en bash (Windows) | Mezcla de bash + aws de Windows → usa PowerShell y `.\setup_local.ps1` |
