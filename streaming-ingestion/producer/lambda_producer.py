@@ -60,10 +60,16 @@ def obtener_estado_estaciones() -> list[dict]:
     status = _descargar_json(URL_STATUS)
     info = _descargar_json(URL_INFO)
 
-    # La capacidad vive en station_information -> la indexamos por station_id
-    # para poder buscarla rápido mientras recorremos station_status.
-    capacidad_por_estacion = {
-        s["station_id"]: s.get("capacity", 0)
+    # Los datos fijos (capacidad, nombre, ubicacion) viven en
+    # station_information -> los indexamos por station_id para buscarlos rápido
+    # mientras recorremos station_status.
+    info_por_estacion = {
+        s["station_id"]: {
+            "capacidad": s.get("capacity", 0),
+            "nombre": s.get("name", ""),
+            "lat": s.get("lat"),
+            "lon": s.get("lon"),
+        }
         for s in info["data"]["stations"]
     }
 
@@ -73,12 +79,16 @@ def obtener_estado_estaciones() -> list[dict]:
     for s in status["data"]["stations"]:
         estacion_id = s["station_id"]
         last_reported = s.get("last_reported")
+        info_est = info_por_estacion.get(estacion_id, {})
 
         evento = {
             "estacion_id": estacion_id,
             "bikes_disponibles": s.get("num_bikes_available", 0),
             "docks_libres": s.get("num_docks_available", 0),
-            "capacidad": capacidad_por_estacion.get(estacion_id, 0),
+            "capacidad": info_est.get("capacidad", 0),
+            "nombre": info_est.get("nombre", ""),
+            "lat": info_est.get("lat"),
+            "lon": info_est.get("lon"),
             "activa": bool(s.get("is_installed", 0)) and bool(s.get("is_renting", 0)),
             # last_reported viene en epoch (segundos); lo pasamos a ISO 8601.
             "timestamp": (
