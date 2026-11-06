@@ -1,0 +1,4 @@
+# Dependencias del dashboard de alertas (RF-07)
+streamlit>=1.30
+boto3>=1.34
+pandas>=2.0
