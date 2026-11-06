@@ -33,6 +33,9 @@ import streamlit as st
 
 TABLA = os.environ.get("DYNAMODB_TABLA", "bikenexus-estado-estaciones")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
+# Endpoint opcional: para pruebas locales con LocalStack usar
+# DYNAMODB_ENDPOINT=http://localhost:4566. En AWS real se deja vacio.
+ENDPOINT = os.environ.get("DYNAMODB_ENDPOINT") or None
 GSI = "gsi-clasificacion-tiempo"
 
 # Minutos sin reportar tras los cuales una estacion se marca desactualizada (RNF-02).
@@ -44,8 +47,10 @@ CATEGORIAS_ALERTA = ["VACIA", "LLENA", "EN_RIESGO"]
 
 @st.cache_resource
 def _tabla_dynamodb():
-    """Crea el recurso de DynamoDB una sola vez."""
-    return boto3.resource("dynamodb", region_name=REGION).Table(TABLA)
+    """Crea el recurso de DynamoDB una sola vez (AWS real o LocalStack)."""
+    return boto3.resource(
+        "dynamodb", region_name=REGION, endpoint_url=ENDPOINT
+    ).Table(TABLA)
 
 
 def consultar_categoria(clasificacion: str) -> list[dict]:
