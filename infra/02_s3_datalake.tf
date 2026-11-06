@@ -1,5 +1,10 @@
 ###############################################################################
 # Provider + S3 Data Lake (arquitectura Medallion) + bucket de codigo
+#
+# NOTA (AWS Academy): la cuenta de laboratorio tiene politicas (SCP) que bloquean
+# algunas operaciones de S3 (object lock, versioning, etc.). Por eso aqui creamos
+# los buckets de forma MINIMA. En una cuenta AWS normal se podrian añadir
+# versionado y cifrado explicito (ver bloques comentados al final).
 ###############################################################################
 
 terraform {
@@ -34,33 +39,6 @@ resource "aws_s3_bucket" "datalake" {
   }
 }
 
-# Versionado: ayuda a la trazabilidad e inmutabilidad de Bronze (RNF-06).
-resource "aws_s3_bucket_versioning" "datalake" {
-  bucket = aws_s3_bucket.datalake.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# Cifrado en reposo (seguridad).
-resource "aws_s3_bucket_server_side_encryption_configuration" "datalake" {
-  bucket = aws_s3_bucket.datalake.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# Bloquear acceso publico (seguridad).
-resource "aws_s3_bucket_public_access_block" "datalake" {
-  bucket                  = aws_s3_bucket.datalake.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
 # -----------------------------------------------------------------------------
 # Bucket para el codigo de Spark (los .py que EMR ejecuta).
 # -----------------------------------------------------------------------------
@@ -72,10 +50,12 @@ resource "aws_s3_bucket" "codigo" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "codigo" {
-  bucket                  = aws_s3_bucket.codigo.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
+# -----------------------------------------------------------------------------
+# NOTA: En una cuenta AWS estandar (no Academy) se añadiria aqui versionado,
+# cifrado explicito y bloqueo de acceso publico. En Academy esas operaciones
+# estan bloqueadas por SCP, asi que se omiten. S3 cifra por defecto (SSE-S3).
+#
+# resource "aws_s3_bucket_versioning" "datalake" { ... }
+# resource "aws_s3_bucket_server_side_encryption_configuration" "datalake" { ... }
+# resource "aws_s3_bucket_public_access_block" "datalake" { ... }
+# -----------------------------------------------------------------------------
