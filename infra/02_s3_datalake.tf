@@ -11,8 +11,11 @@ terraform {
   required_version = ">= 1.3"
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+      source = "hashicorp/aws"
+      # AWS Academy bloquea (SCP) la lectura de object-lock que el proveedor v5
+      # hace automaticamente al refrescar un bucket S3. La serie 4.x no hace esa
+      # lectura, por eso fijamos 4.67 para que el despliegue funcione en Academy.
+      version = "~> 4.67"
     }
     archive = {
       source  = "hashicorp/archive"
