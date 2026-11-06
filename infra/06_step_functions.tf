@@ -15,8 +15,8 @@ resource "aws_sfn_state_machine" "batch_mensual" {
     {
       LambdaCargaBatchArn = aws_lambda_function.carga_batch.arn
       EmrClusterId        = aws_emr_cluster.spark.id
-      CodeBucket          = aws_s3_bucket.codigo.bucket
-      DataBucket          = aws_s3_bucket.datalake.bucket
+      CodeBucket          = var.code_bucket
+      DataBucket          = var.data_bucket
     }
   )
 

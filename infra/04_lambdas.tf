@@ -59,7 +59,7 @@ resource "aws_lambda_function" "carga_batch" {
 
   environment {
     variables = {
-      LANDING_BUCKET = aws_s3_bucket.datalake.bucket
+      LANDING_BUCKET = var.data_bucket
     }
   }
 

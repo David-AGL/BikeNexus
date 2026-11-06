@@ -31,7 +31,7 @@ resource "aws_emr_cluster" "spark" {
   keep_job_flow_alive_when_no_steps = true
 
   # Loguear a S3 para depurar los jobs.
-  log_uri = "s3://${aws_s3_bucket.datalake.bucket}/emr-logs/"
+  log_uri = "s3://${var.data_bucket}/emr-logs/"
 
   tags = {
     Proyecto = var.proyecto
