@@ -1,20 +1,24 @@
 ###############################################################################
-# Provider + S3 Data Lake (arquitectura Medallion) + bucket de codigo
+# Provider + configuración de Terraform
 #
-# NOTA (AWS Academy): la cuenta de laboratorio tiene politicas (SCP) que bloquean
-# algunas operaciones de S3 (object lock, versioning, etc.). Por eso aqui creamos
-# los buckets de forma MINIMA. En una cuenta AWS normal se podrian añadir
-# versionado y cifrado explicito (ver bloques comentados al final).
+# NOTA IMPORTANTE (AWS Academy):
+#   La cuenta de laboratorio tiene una SCP que bloquea de forma agresiva la
+#   lectura de la "object lock configuration" de S3 (GetBucketObjectLockConfiguration),
+#   lo que impide que Terraform CREE, IMPORTE o REFRESQUE buckets S3 (siempre da 403).
+#
+#   Por eso los buckets del Data Lake NO se gestionan con Terraform: se crean a
+#   mano con AWS CLI (ver local/COMANDOS o el README de despliegue) y el resto de
+#   la infraestructura los referencia por nombre mediante las variables
+#   var.data_bucket y var.code_bucket.
+#
+#   En una cuenta AWS estandar, aqui irian los recursos aws_s3_bucket normales.
 ###############################################################################
 
 terraform {
   required_version = ">= 1.3"
   required_providers {
     aws = {
-      source = "hashicorp/aws"
-      # AWS Academy bloquea (SCP) la lectura de object-lock que el proveedor v5
-      # hace automaticamente al refrescar un bucket S3. La serie 4.x no hace esa
-      # lectura, por eso fijamos 4.67 para que el despliegue funcione en Academy.
+      source  = "hashicorp/aws"
       version = "~> 4.67"
     }
     archive = {
@@ -27,38 +31,3 @@ terraform {
 provider "aws" {
   region = var.aws_region
 }
-
-# -----------------------------------------------------------------------------
-# Bucket del Data Lake. Dentro viven las zonas por prefijo (carpeta):
-#   landing/  bronze/  silver/  gold/  cuarentena/  checkpoints/  athena-results/
-# No se crean carpetas vacias: S3 las crea al escribir el primer objeto.
-# -----------------------------------------------------------------------------
-resource "aws_s3_bucket" "datalake" {
-  bucket = var.data_bucket
-
-  tags = {
-    Proyecto = var.proyecto
-    Uso      = "data-lake-medallion"
-  }
-}
-
-# -----------------------------------------------------------------------------
-# Bucket para el codigo de Spark (los .py que EMR ejecuta).
-# -----------------------------------------------------------------------------
-resource "aws_s3_bucket" "codigo" {
-  bucket = var.code_bucket
-  tags = {
-    Proyecto = var.proyecto
-    Uso      = "scripts-spark"
-  }
-}
-
-# -----------------------------------------------------------------------------
-# NOTA: En una cuenta AWS estandar (no Academy) se añadiria aqui versionado,
-# cifrado explicito y bloqueo de acceso publico. En Academy esas operaciones
-# estan bloqueadas por SCP, asi que se omiten. S3 cifra por defecto (SSE-S3).
-#
-# resource "aws_s3_bucket_versioning" "datalake" { ... }
-# resource "aws_s3_bucket_server_side_encryption_configuration" "datalake" { ... }
-# resource "aws_s3_bucket_public_access_block" "datalake" { ... }
-# -----------------------------------------------------------------------------

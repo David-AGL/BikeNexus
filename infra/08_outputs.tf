@@ -5,12 +5,12 @@
 
 output "data_bucket" {
   description = "Bucket del Data Lake"
-  value       = aws_s3_bucket.datalake.bucket
+  value       = var.data_bucket
 }
 
 output "code_bucket" {
   description = "Bucket de codigo de Spark"
-  value       = aws_s3_bucket.codigo.bucket
+  value       = var.code_bucket
 }
 
 output "kinesis_stream" {
