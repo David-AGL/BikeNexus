@@ -24,7 +24,9 @@ resource "aws_lambda_function" "productor" {
   function_name = "${var.proyecto}-productor"
   role          = var.lab_role_arn
   handler       = "lambda_producer.handler"
-  runtime       = "python3.11"
+  # python3.10: el proveedor AWS 4.67 (requerido por Academy) aun no soporta 3.11.
+  # El codigo funciona igual en 3.10.
+  runtime       = "python3.10"
   timeout       = 30
   memory_size   = 256
 
@@ -48,8 +50,8 @@ resource "aws_lambda_function" "carga_batch" {
   function_name = "${var.proyecto}-carga-batch"
   role          = var.lab_role_arn
   handler       = "lambda_carga_batch.handler"
-  runtime       = "python3.11"
-  timeout       = 300 # el CSV puede ser grande: mas tiempo para descargar/descomprimir
+  runtime       = "python3.10" # ver nota en la Lambda productora
+  timeout       = 300          # el CSV puede ser grande: mas tiempo para descargar/descomprimir
   memory_size   = 1024
 
   filename         = data.archive_file.lambda_carga_batch_zip.output_path
