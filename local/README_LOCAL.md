@@ -99,12 +99,27 @@ docker compose down
 ---
 
 ## Flujo para ver el dashboard actualizarse
-Para ver cómo cambia el dashboard con datos nuevos, repite en orden:
+
+### Opción A — Manual (una foto nueva cada vez)
 ```bash
 python run_producer_local.py --ciclos 1   # trae datos frescos
 python run_pipeline_local.py              # los procesa
 # y refresca el dashboard en el navegador (botón "Refrescar ahora")
 ```
+
+### Opción B — Automático en bucle (imita AWS) ⭐ recomendado
+En vez de hacerlo a mano, deja un script corriendo que trae y procesa datos cada
+60 segundos solo, igual que EventBridge + Spark Streaming en AWS:
+```bash
+python run_loop_local.py              # ciclo cada 60s
+# o cada 30s:
+python run_loop_local.py --intervalo 30
+```
+Déjalo corriendo en una ventana, abre el dashboard en otra, y pulsa "Refrescar
+ahora" cuando quieras: siempre verás datos frescos. Para detener: Ctrl+C.
+
+> En AWS esto es automático (EventBridge dispara cada 60s y Spark procesa en
+> continuo). `run_loop_local.py` reproduce ese comportamiento en tu PC.
 
 ## ¿Qué NO se prueba en local?
 - **EMR y Step Functions**: necesitan AWS real (la lógica de Spark sí se replica
