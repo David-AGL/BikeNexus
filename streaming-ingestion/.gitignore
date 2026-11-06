@@ -1,0 +1,20 @@
+# Terraform
+infra/build/
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Spark / Delta locales
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/
