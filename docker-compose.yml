@@ -1,0 +1,22 @@
+# docker-compose en la raiz (requisito de la rubrica).
+# Levanta LocalStack para correr el pipeline de streaming localmente (Kinesis,
+# S3, DynamoDB) sin depender de una cuenta AWS. Es el mismo de local/.
+#
+# Uso:
+#   docker compose up -d        # levantar
+#   bash local/setup_local.sh   # crear recursos (o local/setup_local.ps1 en Windows)
+#   docker compose down         # apagar
+#
+# Para el despliegue en AWS real, ver infra/ (Terraform) y README.md.
+
+services:
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: bikenexus-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=kinesis,s3,dynamodb
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "./local/.localstack-data:/var/lib/localstack"
