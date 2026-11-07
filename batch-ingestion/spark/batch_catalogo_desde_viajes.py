@@ -72,13 +72,14 @@ def main():
         .filter(F.col("estacion_id").isNotNull() & (F.col("estacion_id") != ""))
         .dropDuplicates(["estacion_id"])
         # El CSV no trae capacidad ni zona; asignamos valores razonables:
-        #  - capacidad estimada (el CSV no la trae) para poder validar en Silver.
-        #  - zona derivada de un prefijo del nombre (barrio aproximado) o 'JC'.
+        .withColumn("nombre", F.coalesce(F.col("nombre"), F.lit("Sin nombre")))
         .withColumn("capacidad", F.lit(30))
-        .withColumn("zona", F.coalesce(
-            F.regexp_extract(F.col("nombre"), r"^([A-Za-z]+)", 1),
-            F.lit("General"),
-        ))
+        # Zona = primera palabra del nombre (barrio aproximado). Si no hay letras,
+        # queda cadena vacia; la normalizamos a 'General' con un when.
+        .withColumn("_prefijo", F.regexp_extract(F.col("nombre"), r"([A-Za-z]+)", 1))
+        .withColumn("zona", F.when(F.col("_prefijo") == "", F.lit("General"))
+                             .otherwise(F.col("_prefijo")))
+        .drop("_prefijo")
     )
 
     # BRONZE (crudo + metadatos).
