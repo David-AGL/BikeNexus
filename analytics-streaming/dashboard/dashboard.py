@@ -260,18 +260,24 @@ def main():
     inyectar_css()
 
     # Auto-refresco cada 60s: el dashboard se recarga solo para mostrar el ultimo
-    # estado de DynamoDB (el consumidor lo actualiza cada 60s). Se usa el helper
-    # nativo si existe; si no, un meta-refresh HTML como respaldo.
+    # estado de DynamoDB (el consumidor lo actualiza cada 60s).
+    # Metodo principal: paquete streamlit-autorefresh (pip install streamlit-autorefresh).
+    # Respaldo: componente HTML que fuerza la recarga de la pestaña del navegador.
+    _refresco_ok = False
     try:
-        st.autorefresh(interval=60_000, key="auto_refresh_60s")
-    except AttributeError:
-        try:
-            from streamlit_autorefresh import st_autorefresh
-            st_autorefresh(interval=60_000, key="auto_refresh_60s")
-        except ImportError:
-            st.markdown(
-                "<meta http-equiv='refresh' content='60'>", unsafe_allow_html=True
-            )
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=60_000, key="auto_refresh_60s")
+        _refresco_ok = True
+    except Exception:  # noqa: BLE001
+        _refresco_ok = False
+
+    if not _refresco_ok:
+        # Respaldo: recarga la pagina completa cada 60s via JavaScript del navegador.
+        import streamlit.components.v1 as components
+        components.html(
+            "<script>setTimeout(function(){ window.parent.location.reload(); }, 60000);</script>",
+            height=0,
+        )
 
     st.markdown(
         "<div class='titulo'>🚲 BikeNexus · Centro de Operaciones</div>"
