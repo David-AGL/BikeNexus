@@ -35,7 +35,7 @@ resource "aws_lambda_function" "productor" {
 
   environment {
     variables = {
-      KINESIS_STREAM_NAME = aws_kinesis_stream.estaciones.name
+      KINESIS_STREAM_NAME = var.stream_name
       MAX_REINTENTOS      = "5"
     }
   }
