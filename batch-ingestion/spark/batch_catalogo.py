@@ -72,14 +72,16 @@ def main():
         .withColumn("meta_archivo_origen", F.input_file_name())
         .withColumn("meta_bronze_ingest_ts", F.current_timestamp())
     )
-    bronze.write.format("delta").mode("overwrite").save(args.bronze_path)
+    (bronze.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.bronze_path))
 
     # 3. SILVER: catalogo vigente, una fila por estacion (la mas reciente).
     #    Deduplicamos por estacion_id por si el feed trae repetidos.
     silver = bronze.dropDuplicates(["estacion_id"]).select(
         "estacion_id", "nombre", "lat", "lon", "capacidad", "zona"
     )
-    silver.write.format("delta").mode("overwrite").save(args.silver_path)
+    (silver.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.silver_path))
 
     total = silver.count()
     print(f"[catalogo] Estaciones en Silver: {total}")

@@ -1,0 +1,11 @@
+# Dependencias para correr el pipeline batch de BikeNexus en LOCAL
+# (sin EMR, sin Docker). Pensado para Python 3.11 en Windows/Mac/Linux.
+#
+# Instalar con:
+#   pip install -r batch-ingestion/spark/requirements-batch-local.txt
+#
+# PySpark 3.5.x es compatible con delta-spark 3.1.0 (el mismo paquete
+# io.delta:delta-spark_2.12:3.1.0 que usan los jobs en EMR), de modo que
+# la version de Delta en local es identica a la de produccion.
+pyspark==3.5.1
+delta-spark==3.1.0

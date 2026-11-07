@@ -74,7 +74,10 @@ def main():
         .withColumn("meta_archivo_origen", F.input_file_name())
         .withColumn("meta_bronze_ingest_ts", F.current_timestamp())
     )
-    bronze.write.format("delta").mode("overwrite").save(args.bronze_path)
+    # overwriteSchema=true: re-ejecutable aunque cambie el esquema de la tabla
+    # Delta previa (evita "Failed to merge incompatible data types").
+    (bronze.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.bronze_path))
 
     conteo_bronze = spark.read.format("delta").load(args.bronze_path).count()
     print(f"[viajes] Registros en Bronze: {conteo_bronze}")
@@ -155,8 +158,10 @@ def main():
     invalidos = clasificado.filter(~F.col("es_valido"))
 
     # 6. Escribir Silver (validos) y cuarentena (invalidos, apartados — RF-05).
-    validos.write.format("delta").mode("overwrite").save(args.silver_path)
-    invalidos.write.format("delta").mode("overwrite").save(args.cuarentena_path)
+    (validos.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.silver_path))
+    (invalidos.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.cuarentena_path))
 
     print(f"[viajes] Validos en Silver: {validos.count()}")
     print(f"[viajes] Apartados en cuarentena: {invalidos.count()}")

@@ -73,7 +73,9 @@ def main():
         .dropDuplicates(["estacion_id"])
         # El CSV no trae capacidad ni zona; asignamos valores razonables:
         .withColumn("nombre", F.coalesce(F.col("nombre"), F.lit("Sin nombre")))
-        .withColumn("capacidad", F.lit(30))
+        # capacidad como INTEGER explicito: evita que Delta vea LongType en un
+        # intento y IntegerType en otro (conflicto "Failed to merge ... types").
+        .withColumn("capacidad", F.lit(30).cast("int"))
         # Zona = primera palabra del nombre (barrio aproximado). Si no hay letras,
         # queda cadena vacia; la normalizamos a 'General' con un when.
         .withColumn("_prefijo", F.regexp_extract(F.col("nombre"), r"([A-Za-z]+)", 1))
@@ -83,14 +85,19 @@ def main():
     )
 
     # BRONZE (crudo + metadatos).
+    # overwriteSchema=true: al re-ejecutar el job, permite reemplazar el esquema
+    # de una tabla Delta previa aunque difieran los tipos (p. ej. capacidad
+    # Long vs Integer). Evita "AnalysisException: Failed to merge ... types".
     bronze = (estaciones
               .withColumn("meta_archivo_origen", F.input_file_name())
               .withColumn("meta_bronze_ingest_ts", F.current_timestamp()))
-    bronze.write.format("delta").mode("overwrite").save(args.bronze_path)
+    (bronze.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.bronze_path))
 
     # SILVER (catalogo vigente).
     silver = bronze.select("estacion_id", "nombre", "lat", "lon", "capacidad", "zona")
-    silver.write.format("delta").mode("overwrite").save(args.silver_path)
+    (silver.write.format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").save(args.silver_path))
 
     print(f"[catalogo-desde-viajes] Estaciones en Silver: {silver.count()}")
 

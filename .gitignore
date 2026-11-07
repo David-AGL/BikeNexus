@@ -23,3 +23,18 @@ checkpoints/
 # Sistema
 .DS_Store
 .historial_estaciones.json
+
+# Spark local en Windows (winutils / hadoop.dll descargados)
+.hadoop/
+
+# Salida del pipeline batch local (lakehouse Delta generado en disco)
+lakehouse_local/
+
+# Logs y salidas temporales de ejecuciones/diagnostico
+*.log
+*.gz
+lambda_out.json
+salida_lambda.json
+
+# Datos de LocalStack (estado efimero del "AWS falso")
+local/.localstack-data/

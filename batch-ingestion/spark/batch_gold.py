@@ -83,13 +83,19 @@ def main():
         F.col("estacion_id"),
         "nombre", "lat", "lon", "capacidad", "zona",
     )
-    dim_estacion.write.format("delta").mode("overwrite").save(
+    # overwriteSchema=true en todas las escrituras Gold: hace el job
+    # re-ejecutable aunque el esquema de una tabla Delta previa difiera.
+    dim_estacion.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).save(
         f"{args.gold_path}/dim_estacion"
     )
 
     # --- DIM_TIEMPO: atributos temporales ------------------------------------
     dim_tiempo = construir_dim_tiempo(viajes)
-    dim_tiempo.write.format("delta").mode("overwrite").save(
+    dim_tiempo.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).save(
         f"{args.gold_path}/dim_tiempo"
     )
 
@@ -111,6 +117,7 @@ def main():
         fact_viajes.write
         .format("delta")
         .mode("overwrite")
+        .option("overwriteSchema", "true")
         .partitionBy("anio", "mes")
         .save(f"{args.gold_path}/fact_viajes")
     )
@@ -165,7 +172,9 @@ def construir_agregados_negocio(spark, fact, dim_estacion, dim_tiempo, gold_path
     ventana_zona = Window.partitionBy("zona").orderBy(F.col("num_viajes").desc())
     resultado = agregado.withColumn("rank_en_zona", F.row_number().over(ventana_zona))
 
-    resultado.write.format("delta").mode("overwrite").save(
+    resultado.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).save(
         f"{gold_path}/agg_demanda_estacion"
     )
     print(f"[gold] Agg_Demanda_Estacion: {resultado.count()} filas "
