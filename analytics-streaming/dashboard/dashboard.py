@@ -230,16 +230,23 @@ def mapa_estaciones(df):
     alertas = con_coords[con_coords["estado"].isin(CATEGORIAS_ALERTA)]
     if alertas.empty:
         return None
-    fig = px.scatter_mapbox(
-        alertas, lat="lat", lon="lon", color="estado",
-        color_discrete_map=COLOR,
-        hover_name="estacion_id",
+
+    # Plotly reciente (>=5.24) renombro scatter_mapbox -> scatter_map (usa maplibre).
+    # Soportamos ambas versiones para que el mapa funcione en cualquier entorno.
+    comun = dict(
+        lat="lat", lon="lon", color="estado",
+        color_discrete_map=COLOR, hover_name="estacion_id",
         hover_data={"bikes": True, "docks": True, "lat": False, "lon": False},
         zoom=10.5, height=420,
     )
+    if hasattr(px, "scatter_map"):
+        fig = px.scatter_map(alertas, map_style="carto-darkmatter", **comun)
+    else:
+        fig = px.scatter_mapbox(alertas, **comun)
+        fig.update_layout(mapbox_style="carto-darkmatter")
+
     fig.update_traces(marker=dict(size=11))
     fig.update_layout(
-        mapbox_style="carto-darkmatter",
         margin=dict(t=0, b=0, l=0, r=0),
         legend=dict(font_color="#cbd5e1", bgcolor="rgba(15,23,42,0.6)"),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -261,7 +268,7 @@ def main():
 
     with st.sidebar:
         st.header("⚙️ Controles")
-        if st.button("🔄 Refrescar datos", use_container_width=True):
+        if st.button("🔄 Refrescar datos", width='stretch'):
             st.cache_data.clear()
         st.divider()
         st.caption(f"📦 Tabla: `{TABLA}`")
@@ -305,14 +312,14 @@ def main():
     g1, g2 = st.columns([1, 1.6])
     with g1:
         st.markdown("**Distribución por estado**")
-        st.plotly_chart(grafico_dona(df), use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(grafico_dona(df), width='stretch', config={"displayModeBar": False})
     with g2:
         st.markdown("**🏆 Top 10 estaciones más urgentes** "
                     "<span style='color:#64748b;font-size:0.8rem'>(por tiempo estimado para fallar)</span>",
                     unsafe_allow_html=True)
         fig_top = grafico_top_criticas(alertas) if not alertas.empty else None
         if fig_top is not None:
-            st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_top, width='stretch', config={"displayModeBar": False})
         else:
             st.info(
                 "ℹ️ Aún no hay estaciones **en riesgo** con predicción de tiempo.\n\n"
@@ -325,7 +332,7 @@ def main():
     fig_mapa = mapa_estaciones(df)
     if fig_mapa is not None:
         st.markdown("**🗺️ Ubicación de estaciones en alerta**")
-        st.plotly_chart(fig_mapa, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_mapa, width='stretch', config={"displayModeBar": False})
 
     # --- Tabla ---------------------------------------------------------------
     st.markdown("**🚨 Detalle de estaciones en alerta — ordenadas por urgencia**")
@@ -349,7 +356,7 @@ def main():
     })
 
     st.dataframe(
-        vista, use_container_width=True, hide_index=True, height=380,
+        vista, width='stretch', hide_index=True, height=380,
         column_config={
             "% Ocupación": st.column_config.ProgressColumn(
                 "% Ocupación", format="%.0f%%", min_value=0, max_value=100),
