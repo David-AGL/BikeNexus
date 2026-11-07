@@ -115,10 +115,61 @@ def main():
         .save(f"{args.gold_path}/fact_viajes")
     )
 
+    # --- GOLD AGREGADO: transformaciones NO TRIVIALES (rubrica: join + groupBy
+    #     + windowing). Responde preguntas de negocio del E1 directamente. -----
+    construir_agregados_negocio(spark, fact_viajes, dim_estacion, dim_tiempo,
+                                args.gold_path)
+
     # Resumen para verificar.
     print(f"[gold] Dim_Estacion: {dim_estacion.count()} filas")
     print(f"[gold] Dim_Tiempo:   {dim_tiempo.count()} filas")
     print(f"[gold] Fact_Viajes:  {fact_viajes.count()} filas")
+
+
+def construir_agregados_negocio(spark, fact, dim_estacion, dim_tiempo, gold_path):
+    """
+    Tabla Gold de agregados que responde preguntas de negocio del E1, usando las
+    TRES transformaciones NO TRIVIALES que exige la rubrica:
+
+      1) JOIN   : fact_viajes  x  dim_estacion  x  dim_tiempo (star join).
+      2) GROUP BY: agrega numero de viajes y duracion promedio por estacion, zona,
+                   dia de la semana y hora.
+      3) WINDOWING: ranking de las estaciones mas demandadas por zona (window
+                    function row_number sobre una particion por zona).
+
+    Resultado: tabla 'gold/agg_demanda_estacion' lista para Athena.
+    """
+    from pyspark.sql.window import Window
+
+    # (1) JOIN del star schema: hechos con las dos dimensiones.
+    enriquecido = (
+        fact.alias("f")
+        .join(dim_estacion.alias("e"), F.col("f.estacion_origen_id") == F.col("e.estacion_id"), "inner")
+        .join(dim_tiempo.alias("t"), F.col("f.tiempo_id") == F.col("t.tiempo_id"), "inner")
+    )
+
+    # (2) GROUP BY: metricas de negocio por estacion / zona / dia / hora.
+    agregado = (
+        enriquecido.groupBy(
+            F.col("e.estacion_id"), F.col("e.nombre"), F.col("e.zona"),
+            F.col("t.nombre_dia"), F.col("t.hora"),
+        )
+        .agg(
+            F.count("*").alias("num_viajes"),
+            F.round(F.avg("f.duracion_min"), 2).alias("duracion_promedio_min"),
+            F.round(F.max("f.duracion_min"), 2).alias("duracion_max_min"),
+        )
+    )
+
+    # (3) WINDOWING: ranking de estaciones mas demandadas dentro de cada zona.
+    ventana_zona = Window.partitionBy("zona").orderBy(F.col("num_viajes").desc())
+    resultado = agregado.withColumn("rank_en_zona", F.row_number().over(ventana_zona))
+
+    resultado.write.format("delta").mode("overwrite").save(
+        f"{gold_path}/agg_demanda_estacion"
+    )
+    print(f"[gold] Agg_Demanda_Estacion: {resultado.count()} filas "
+          f"(join + groupBy + window)")
 
 
 if __name__ == "__main__":

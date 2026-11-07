@@ -57,3 +57,19 @@ LOCATION 's3://bikenexus-datalake/gold/fact_viajes/';
 
 -- 5. Cargar las particiones existentes (necesario tras crear la tabla).
 MSCK REPAIR TABLE bikenexus_gold.fact_viajes;
+
+
+-- 6. Tabla agregada de demanda por estacion (calculada por Spark: join+groupBy+window).
+CREATE EXTERNAL TABLE IF NOT EXISTS bikenexus_gold.agg_demanda_estacion (
+    estacion_id           STRING,
+    nombre                STRING,
+    zona                  STRING,
+    nombre_dia            STRING,
+    hora                  INT,
+    num_viajes            BIGINT,
+    duracion_promedio_min DOUBLE,
+    duracion_max_min      DOUBLE,
+    rank_en_zona          INT
+)
+STORED AS PARQUET
+LOCATION 's3://bikenexus-datalake/gold/agg_demanda_estacion/';

@@ -111,27 +111,43 @@ def main():
         (F.col("duracion_seg") <= DURACION_MAX_SEG)
     )
 
-    # 5. Validacion 2 (RF-05): estaciones existen en el catalogo.
-    catalogo = (
+    # 5. Validacion 2 (RF-05): las estaciones existen en el catalogo.
+    #    Se valida con un JOIN real (transformacion no trivial) contra el catalogo,
+    #    marcando si origen y destino existen. Usamos broadcast porque el catalogo
+    #    es pequeño (~2000 filas), lo que hace el join muy eficiente.
+    catalogo_ids = (
         spark.read.format("delta").load(args.catalogo_silver)
-        .select("estacion_id")
+        .select(F.col("estacion_id"))
+        .distinct()
     )
-    ids_validos = [r["estacion_id"] for r in catalogo.collect()]
 
+    # Join por estacion de ORIGEN.
+    con_origen = con_duracion.join(
+        F.broadcast(catalogo_ids.withColumnRenamed("estacion_id", "_id_origen")),
+        con_duracion["estacion_origen"] == F.col("_id_origen"),
+        "left",
+    )
+    # Join por estacion de DESTINO.
+    con_destino = con_origen.join(
+        F.broadcast(catalogo_ids.withColumnRenamed("estacion_id", "_id_destino")),
+        con_origen["estacion_destino"] == F.col("_id_destino"),
+        "left",
+    )
+
+    # Existe si el join encontro coincidencia (la columna del catalogo no es nula).
     estaciones_validas = (
-        F.col("estacion_origen").isin(ids_validos) &
-        F.col("estacion_destino").isin(ids_validos)
+        F.col("_id_origen").isNotNull() & F.col("_id_destino").isNotNull()
     )
 
     # Marcamos cada viaje como valido o no, con el motivo del descarte.
-    clasificado = con_duracion.withColumn(
+    clasificado = con_destino.withColumn(
         "es_valido", duracion_valida & estaciones_validas
     ).withColumn(
         "motivo_cuarentena",
         F.when(~duracion_valida, F.lit("duracion_fuera_de_rango"))
          .when(~estaciones_validas, F.lit("estacion_inexistente"))
          .otherwise(F.lit(None)),
-    )
+    ).drop("_id_origen", "_id_destino")
 
     validos = clasificado.filter(F.col("es_valido")).drop(
         "es_valido", "motivo_cuarentena"

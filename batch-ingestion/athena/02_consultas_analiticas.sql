@@ -65,3 +65,15 @@ JOIN bikenexus_gold.dim_estacion e ON f.estacion_origen_id = e.estacion_id
 JOIN bikenexus_gold.dim_tiempo   t ON f.tiempo_id = t.tiempo_id
 GROUP BY e.zona, t.hora
 ORDER BY e.zona, t.hora;
+
+
+-- -----------------------------------------------------------------------------
+-- 5. Usando la tabla agregada de Gold (ya calculada por Spark con join + groupBy
+--    + windowing): top 3 estaciones mas demandadas DE CADA ZONA.
+--    Responde la pregunta de negocio del E1: "¿en que zonas se concentra la
+--    demanda y cuales son las estaciones clave?" (RF-08).
+-- -----------------------------------------------------------------------------
+SELECT zona, nombre, hora, num_viajes, duracion_promedio_min, rank_en_zona
+FROM bikenexus_gold.agg_demanda_estacion
+WHERE rank_en_zona <= 3
+ORDER BY zona, rank_en_zona;
