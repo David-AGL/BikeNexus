@@ -32,6 +32,12 @@ variable "code_bucket" {
 }
 
 # Kinesis
+variable "stream_name" {
+  description = "Nombre del stream de Kinesis (se crea a mano con AWS CLI en Academy)"
+  type        = string
+  default     = "bikenexus-estaciones"
+}
+
 variable "stream_shards" {
   description = "Número de shards del stream de Kinesis (RNF-01)"
   type        = number

@@ -15,7 +15,7 @@ output "code_bucket" {
 
 output "kinesis_stream" {
   description = "Nombre del stream de Kinesis"
-  value       = aws_kinesis_stream.estaciones.name
+  value       = var.stream_name
 }
 
 output "dynamodb_tabla" {
