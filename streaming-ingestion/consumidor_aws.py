@@ -38,16 +38,32 @@ UMBRAL_RIESGO_MIN = 15
 _historial = {}
 
 
-def leer_kinesis(kinesis, stream):
-    """Lee todos los registros disponibles de todos los shards del stream."""
+def iteradores_iniciales(kinesis, stream):
+    """
+    Crea un iterador por shard apuntando a TRIM_HORIZON (inicio de lo disponible,
+    hasta 24h atras). Se llama UNA vez; luego se avanzan con NextShardIterator.
+    """
     desc = kinesis.describe_stream(StreamName=stream)
-    eventos = []
+    iteradores = {}
     for shard in desc["StreamDescription"]["Shards"]:
-        shard_id = shard["ShardId"]
-        it = kinesis.get_shard_iterator(
-            StreamName=stream, ShardId=shard_id, ShardIteratorType="LATEST",
+        sid = shard["ShardId"]
+        iteradores[sid] = kinesis.get_shard_iterator(
+            StreamName=stream, ShardId=sid, ShardIteratorType="TRIM_HORIZON",
         )["ShardIterator"]
-        # Varias pasadas para drenar lo disponible.
+    return iteradores
+
+
+def leer_kinesis(kinesis, iteradores):
+    """
+    Lee lo disponible desde la posicion actual de cada shard y AVANZA el iterador
+    (no reinicia). Asi captura todo lo publicado sin releer ni perder datos.
+    Modifica 'iteradores' en el sitio y devuelve los eventos leidos.
+    """
+    eventos = []
+    for sid, it in list(iteradores.items()):
+        if not it:
+            continue
+        # Hasta 5 pasadas por shard para drenar el backlog.
         for _ in range(5):
             resp = kinesis.get_records(ShardIterator=it, Limit=1000)
             for r in resp["Records"]:
@@ -56,6 +72,7 @@ def leer_kinesis(kinesis, stream):
                 except (ValueError, KeyError):
                     pass
             it = resp.get("NextShardIterator")
+            iteradores[sid] = it
             if not it or not resp["Records"]:
                 break
     return eventos
@@ -149,12 +166,15 @@ def main():
     print(f"    Stream: {args.stream} | Tabla: {args.dynamodb_tabla} | cada {args.intervalo}s")
     print("    (Ctrl+C para detener)\n")
 
+    # Creamos los iteradores UNA vez (TRIM_HORIZON) y los vamos avanzando.
+    iteradores = iteradores_iniciales(kinesis, args.stream)
+
     ciclo = 0
     try:
         while True:
             ciclo += 1
             hora = datetime.now().strftime("%H:%M:%S")
-            eventos = leer_kinesis(kinesis, args.stream)
+            eventos = leer_kinesis(kinesis, iteradores)
             if eventos:
                 validos, stats = procesar(eventos)
                 escribir_dynamodb(tabla, validos)
