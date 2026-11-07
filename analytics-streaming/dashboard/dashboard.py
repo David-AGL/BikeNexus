@@ -327,13 +327,6 @@ def main():
                 "Deja corriendo `run_loop_local.py` unos minutos para que se "
                 "acumule tendencia y aparezcan aquí las estaciones próximas a fallar."
             )
-
-    # --- Mapa ----------------------------------------------------------------
-    fig_mapa = mapa_estaciones(df)
-    if fig_mapa is not None:
-        st.markdown("**🗺️ Ubicación de estaciones en alerta**")
-        st.plotly_chart(fig_mapa, width='stretch', config={"displayModeBar": False})
-
     # --- Tabla ---------------------------------------------------------------
     st.markdown("**🚨 Detalle de estaciones en alerta — ordenadas por urgencia**")
     if alertas.empty:
