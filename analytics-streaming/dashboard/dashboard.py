@@ -259,10 +259,24 @@ def main():
     st.set_page_config(page_title="BikeNexus — Operaciones", page_icon="🚲", layout="wide")
     inyectar_css()
 
+    # Auto-refresco cada 60s: el dashboard se recarga solo para mostrar el ultimo
+    # estado de DynamoDB (el consumidor lo actualiza cada 60s). Se usa el helper
+    # nativo si existe; si no, un meta-refresh HTML como respaldo.
+    try:
+        st.autorefresh(interval=60_000, key="auto_refresh_60s")
+    except AttributeError:
+        try:
+            from streamlit_autorefresh import st_autorefresh
+            st_autorefresh(interval=60_000, key="auto_refresh_60s")
+        except ImportError:
+            st.markdown(
+                "<meta http-equiv='refresh' content='60'>", unsafe_allow_html=True
+            )
+
     st.markdown(
         "<div class='titulo'>🚲 BikeNexus · Centro de Operaciones</div>"
         "<div class='subtitulo'>Monitoreo en tiempo real de estaciones · Nueva York · "
-        "ordenado por urgencia (RF-07)</div>",
+        "ordenado por urgencia (RF-07) · se actualiza cada 60s</div>",
         unsafe_allow_html=True,
     )
 
@@ -335,15 +349,21 @@ def main():
 
     tabla = alertas.copy().sort_values("min_restantes", na_position="last")
     tabla["Estado"] = tabla["estado"].map(LABEL)
+    # Nombre de la estacion (si no hay nombre, usamos el id como respaldo).
+    tabla["Estacion"] = tabla.apply(
+        lambda r: (r["nombre"].strip() if isinstance(r.get("nombre"), str) and r["nombre"].strip()
+                   else str(r["estacion_id"])),
+        axis=1,
+    )
     # Columna "Actualizada": 🟢 verde = dato reciente (<2 min), ⚪ gris = viejo (RNF-02).
     tabla["Actualizada"] = tabla["desactualizada"].map(
         lambda d: "⚪ Sin reporte" if d else "🟢 Al día"
     )
     vista = tabla[[
-        "estacion_id", "Estado", "min_restantes", "bikes", "docks",
+        "Estacion", "Estado", "min_restantes", "bikes", "docks",
         "capacidad", "ocupacion_pct", "Actualizada",
     ]].rename(columns={
-        "estacion_id": "Estación", "min_restantes": "Min. restantes",
+        "Estacion": "Estación", "min_restantes": "Min. restantes",
         "bikes": "Bicis", "docks": "Espacios", "capacidad": "Capacidad",
         "ocupacion_pct": "% Ocupación",
     })
